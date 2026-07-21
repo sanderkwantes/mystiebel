@@ -38,6 +38,8 @@ ESSENTIAL_SENSORS = [
     1111,  # Compressor (state)
     1116,  # Heating Element (state)
     1130,  # Defrosting (state)
+    2370,  # Integral Temperature
+    2372,  # Air Inlet Temperature
 ]
 
 # List of essential control entities (switches, numbers, selects).
