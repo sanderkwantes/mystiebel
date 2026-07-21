@@ -62,6 +62,23 @@ no re-added entity, existing automations referencing it keep working).
 
 `const.py`'s `ESSENTIAL_CONTROLS` comment updated to cross-reference #9.
 
+## Open caveat — one unexplained revert around a reload
+
+During verification, Standby (register 2384 / operating_mode 2758) held
+steady across a 5.5+ minute unattended poll with zero interference. But
+earlier in the same session, it reverted from `frostProtectionHolidayMode`
+back to `comfortMode` on its own during a ~4-minute window where the only
+integration-side action was a `parameters.json` edit → redeploy →
+`config_entries/entry/reload` (a different, earlier reload — right after
+removing the capture patch — did not disturb it).
+
+Not enough data to say the reload caused it versus a coincidental
+firmware-side condition (e.g. a safety override). Flagging rather than
+asserting: reloading the integration while Standby is active hasn't been
+proven safe. Worth a deliberate repeat test (toggle on, reload, watch)
+before relying on this for anything unattended (SG-Ready automation, the
+issue's original motivating use case).
+
 ## Translations
 
 This entity doesn't use HA's own `translations/*.json` mechanism — that
