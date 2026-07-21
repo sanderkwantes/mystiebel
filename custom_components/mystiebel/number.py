@@ -30,7 +30,7 @@ def _setup_number_entities(coordinator):
             continue
 
         param = params_to_check.get(idx)
-        group_id = param.get("group_id", "") if param else ""
+        group_id = (param.get("group_id") or "") if param else ""
         if (
             param
             and "read_write" in param.get("access", [])
