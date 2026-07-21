@@ -62,22 +62,20 @@ no re-added entity, existing automations referencing it keep working).
 
 `const.py`'s `ESSENTIAL_CONTROLS` comment updated to cross-reference #9.
 
-## Open caveat — one unexplained revert around a reload
+## One revert observed, since attributed to user action, not the integration
 
-During verification, Standby (register 2384 / operating_mode 2758) held
-steady across a 5.5+ minute unattended poll with zero interference. But
-earlier in the same session, it reverted from `frostProtectionHolidayMode`
-back to `comfortMode` on its own during a ~4-minute window where the only
-integration-side action was a `parameters.json` edit → redeploy →
-`config_entries/entry/reload` (a different, earlier reload — right after
-removing the capture patch — did not disturb it).
+During verification, an earlier toggle-on reverted from
+`frostProtectionHolidayMode` back to `comfortMode` after a few minutes,
+coinciding with a `parameters.json` edit → redeploy → `config_entries/entry/reload`
+cycle. That raised a question of whether reloading the integration while
+Standby is active could kick the device back out of it.
 
-Not enough data to say the reload caused it versus a coincidental
-firmware-side condition (e.g. a safety override). Flagging rather than
-asserting: reloading the integration while Standby is active hasn't been
-proven safe. Worth a deliberate repeat test (toggle on, reload, watch)
-before relying on this for anything unattended (SG-Ready automation, the
-issue's original motivating use case).
+Retested clean afterwards: toggled on with no reload in between, held
+steady for 5.5+ minutes straight through the same window where the earlier
+revert happened. Terry's own recollection is that he swapped modes himself
+around that time (unrelated to any reload) — so the revert is attributed to
+that, not to the integration. No further action needed here; noting it for
+the record rather than as an open risk.
 
 ## Translations
 
