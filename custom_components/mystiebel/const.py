@@ -51,7 +51,7 @@ ESSENTIAL_CONTROLS = [
     2382,  # Boost Request (Select)
     2487,  # Hot Water Plus Requested (Switch)
     2498,  # Weekly Hygiene Program Requested (Switch)
-    2384,  # Frost Protection Requested (Switch)
+    2384,  # Standby / Frost Protection Requested (Switch) — see #9
     2481,  # End of Vacation (Switch)
 ]
 
