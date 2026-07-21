@@ -29,7 +29,13 @@ class MyStiebelCoordinator(DataUpdateCoordinator):
         shower_output: int,
     ) -> None:
         """Initialize the MyStiebel coordinator."""
-        super().__init__(hass, _LOGGER, name=DOMAIN)
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=DOMAIN,
+            update_method=self._async_update_data,
+            update_interval=timedelta(minutes=1),
+        )
         self.session = session
         self.token = token
         self.installation_id = installation_id
@@ -52,8 +58,26 @@ class MyStiebelCoordinator(DataUpdateCoordinator):
         self._stale_threshold = timedelta(seconds=60)  # Update HA at least every minute
 
     async def _async_update_data(self) -> dict[int, Any]:
-        """Return the current data."""
+        """Fetch fresh data from the MyStiebel WebSocket or return last snapshot."""
         async with self._data_lock:
+            if self.ws and not self.ws.closed:
+                try:
+                    from .websocket_client import GET_VALUES_MSG
+
+                    message = GET_VALUES_MSG(
+                        self.installation_id,
+                        list(self.active_fields) if self.active_fields else [],
+                    )
+                    await self.ws.send_json(message)
+                    _LOGGER.debug("Sent getValues request via WebSocket")
+                except Exception as err:
+                    _LOGGER.error("Error sending getValues request: %s", err)
+            else:
+                _LOGGER.debug("WebSocket not connected during update poll")
+
+            # Always deliver current data to HA, even if unchanged this cycle,
+            # so entities never sit stale between valuesChanged pushes.
+            self.async_set_updated_data(self.data.copy())
             return self.data.copy()
 
     def process_data_update(self, data_updates: list[dict[str, Any]]) -> None:

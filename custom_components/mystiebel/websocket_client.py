@@ -394,3 +394,23 @@ def SET_VALUE_MSG(
             "fields": [{"registerIndex": register_index, "displayValue": value}],
         },
     }
+
+
+def GET_VALUES_MSG(
+    installation_id: str, registers: list[int] | None = None
+) -> dict[str, Any]:
+    """Create a getValues message.
+
+    Requests the current values from the device. Used by the coordinator's
+    periodic poll as a safety net alongside the WebSocket's push-based
+    valuesChanged updates.
+    """
+    return {
+        "jsonrpc": "2.0",
+        "id": _generate_message_id(long_format=True),
+        "method": "getValues",
+        "params": {
+            "installationId": int(installation_id),
+            "fields": registers if registers else [],
+        },
+    }
