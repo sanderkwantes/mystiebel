@@ -32,7 +32,7 @@ class MyStiebelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return MyStiebelOptionsFlowHandler(config_entry)
+        return MyStiebelOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
