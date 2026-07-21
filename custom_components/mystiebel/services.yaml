@@ -1,0 +1,15 @@
+restart_connection:
+  name: Restart connection
+  description: >-
+    Restart the WebSocket connection to the MyStiebel cloud API. Useful if
+    entities have stopped updating without an integration restart.
+  fields:
+    config_entry_id:
+      name: Config entry
+      description: >-
+        Optional. Restart only this config entry's connection. If omitted,
+        restarts all loaded MyStiebel connections.
+      required: false
+      selector:
+        config_entry:
+          integration: mystiebel

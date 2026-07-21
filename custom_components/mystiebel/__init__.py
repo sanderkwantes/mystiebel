@@ -3,8 +3,9 @@
 import logging
 import uuid
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import aiohttp_client
 
 from .const import DOMAIN
@@ -17,6 +18,24 @@ from .websocket_client import setup_websocket_listener
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["binary_sensor", "number", "select", "sensor", "switch", "time"]
+
+SERVICE_RESTART_CONNECTION = "restart_connection"
+SERVICE_RESTART_CONNECTION_SCHEMA = vol.Schema(
+    {vol.Optional("config_entry_id"): str}
+)
+
+
+async def _async_restart_connection(hass: HomeAssistant, call: ServiceCall) -> None:
+    """Restart the WebSocket client for one or all loaded entries."""
+    entry_id = call.data.get("config_entry_id")
+    coordinators = hass.data.get(DOMAIN, {})
+    targets = [coordinators[entry_id]] if entry_id else list(coordinators.values())
+    for coordinator in targets:
+        websocket_client = getattr(coordinator, "websocket_client", None)
+        if websocket_client is None:
+            continue
+        _LOGGER.info("Restarting WebSocket connection for %s", coordinator.installation_id)
+        await websocket_client.restart()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -126,6 +145,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, session, coordinator, auth, coordinator.active_fields
     )
     coordinator.websocket_client = websocket_client
+
+    if not hass.services.has_service(DOMAIN, SERVICE_RESTART_CONNECTION):
+
+        async def _handle_restart_connection(call: ServiceCall) -> None:
+            await _async_restart_connection(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_RESTART_CONNECTION,
+            _handle_restart_connection,
+            schema=SERVICE_RESTART_CONNECTION_SCHEMA,
+        )
 
     return True
 

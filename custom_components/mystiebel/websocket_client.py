@@ -82,6 +82,12 @@ class WebSocketClient:
             "mystiebel_websocket"
         )
 
+    async def restart(self) -> None:
+        """Restart the WebSocket client cleanly."""
+        await self.stop()
+        self._running = True
+        self.start()
+
     async def stop(self) -> None:
         """Stop the WebSocket client."""
         _LOGGER.debug("Stopping WebSocket client")
@@ -169,10 +175,10 @@ class WebSocketClient:
 
     async def _authenticate(self) -> None:
         """Authenticate and update token."""
-        _LOGGER.debug("Authenticating for WebSocket connection")
-        await self.auth.authenticate()
+        _LOGGER.debug("Authenticating for WebSocket connection if token not valid")
+        await self.auth.ensure_valid_token()
         self.coordinator.set_token(self.auth.token)
-        _LOGGER.debug("Authentication successful")
+        _LOGGER.debug("(Re-)authentication successful")
 
     async def _create_connection(self) -> aiohttp.ClientWebSocketResponse:
         """Create WebSocket connection with proper headers."""
