@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 import logging
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
@@ -53,11 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
             )
             if is_time_control or has_choices or is_numeric_with_range:
                 is_control_entity = True
-        if not is_control_entity:
-            if param.get("choicelist_id") == "State_on_off":
-                entities.append(MyStiebelBinarySensor(coordinator, idx, param))
-            else:
-                entities.append(MyStiebelSensor(coordinator, idx, param))
+        if not is_control_entity and param.get("choicelist_id") != "State_on_off":
+            entities.append(MyStiebelSensor(coordinator, idx, param))
 
     if 87 in fields_to_create:
         entities.append(MyStiebelAlarmSensor(coordinator, alarms_map))
@@ -319,27 +315,3 @@ class MyStiebelSensor(MyStiebelBaseEntity, SensorEntity):
             return float(value)
         except (ValueError, TypeError):
             return value
-
-
-class MyStiebelBinarySensor(MyStiebelBaseEntity, BinarySensorEntity):
-    def __init__(self, coordinator, register_index, param) -> None:
-        super().__init__(coordinator, param)
-        self._register_index = register_index
-        self._attr_unique_id = f"mystiebel_{register_index}"
-        self._attr_name = param.get("display_name")
-        if register_index not in ESSENTIAL_SENSORS:
-            self._attr_entity_category = EntityCategory.DIAGNOSTIC
-            self._attr_entity_registry_enabled_default = False
-        else:
-            self._attr_entity_category = None
-            self._attr_entity_registry_enabled_default = True
-
-    def _handle_coordinator_update(self) -> None:
-        self.async_write_ha_state()
-
-    @property
-    def is_on(self):
-        try:
-            return float(self.coordinator.data.get(self._register_index)) == 1.0
-        except (ValueError, TypeError):
-            return False
