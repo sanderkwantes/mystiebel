@@ -88,7 +88,22 @@ class MyStiebelCoordinator(DataUpdateCoordinator):
                         )
 
         # Schedule the update in the event loop
-        asyncio.create_task(_update())
+        task = asyncio.create_task(_update())
+        task.add_done_callback(self._log_task_exception)
+
+    @staticmethod
+    def _log_task_exception(task: asyncio.Task) -> None:
+        """Surface exceptions from process_data_update's background task.
+
+        Without this, a parsing error in a single update is silently
+        swallowed and no further values are processed until the next
+        WebSocket reconnect.
+        """
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            _LOGGER.error("Error processing data update: %s", exc, exc_info=exc)
 
     def set_websocket(self, ws: Any) -> None:
         """Set the WebSocket connection."""

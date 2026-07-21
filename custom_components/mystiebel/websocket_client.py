@@ -276,8 +276,31 @@ class WebSocketClient:
     async def _handle_value_update(self, data: dict[str, Any]) -> None:
         """Handle value change notification."""
         params = data.get("params", {})
-        _LOGGER.debug("Value update received: %s", params)
-        self.coordinator.process_data_update([params])
+        _LOGGER.debug("Raw valuesChanged params: %s", params)
+        updates = self._normalize_value_updates(params)
+        if not updates:
+            _LOGGER.warning("Unrecognized valuesChanged payload shape: %s", params)
+            return
+        self.coordinator.process_data_update(updates)
+
+    @staticmethod
+    def _normalize_value_updates(params: Any) -> list[dict[str, Any]]:
+        """Normalize a valuesChanged payload into a list of {registerIndex, displayValue} dicts.
+
+        The API has been observed sending either a single flat update, or a
+        batch nested under "fields" (matching the shape used by the initial
+        getValues response). Handle both so a shape change doesn't silently
+        drop every subsequent update until the next reconnect.
+        """
+        if isinstance(params, list):
+            return params
+        if isinstance(params, dict):
+            fields = params.get("fields")
+            if isinstance(fields, list):
+                return fields
+            if "registerIndex" in params:
+                return [params]
+        return []
 
     def _create_get_values_msg(self) -> dict[str, Any]:
         """Create a getValues message."""
