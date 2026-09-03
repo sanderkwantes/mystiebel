@@ -82,6 +82,12 @@ class WebSocketClient:
             "mystiebel_websocket"
         )
 
+    async def restart(self) -> None:
+        """Restart the WebSocket client cleanly."""
+        await self.stop()
+        self._running = True
+        self.start()
+
     async def stop(self) -> None:
         """Stop the WebSocket client."""
         _LOGGER.debug("Stopping WebSocket client")
@@ -169,10 +175,10 @@ class WebSocketClient:
 
     async def _authenticate(self) -> None:
         """Authenticate and update token."""
-        _LOGGER.debug("Authenticating for WebSocket connection")
-        await self.auth.authenticate()
+        _LOGGER.debug("Authenticating for WebSocket connection if token not valid")
+        await self.auth.ensure_valid_token()
         self.coordinator.set_token(self.auth.token)
-        _LOGGER.debug("Authentication successful")
+        _LOGGER.debug("(Re-)authentication successful")
 
     async def _create_connection(self) -> aiohttp.ClientWebSocketResponse:
         """Create WebSocket connection with proper headers."""
@@ -276,8 +282,31 @@ class WebSocketClient:
     async def _handle_value_update(self, data: dict[str, Any]) -> None:
         """Handle value change notification."""
         params = data.get("params", {})
-        _LOGGER.debug("Value update received: %s", params)
-        self.coordinator.process_data_update([params])
+        _LOGGER.debug("Raw valuesChanged params: %s", params)
+        updates = self._normalize_value_updates(params)
+        if not updates:
+            _LOGGER.warning("Unrecognized valuesChanged payload shape: %s", params)
+            return
+        self.coordinator.process_data_update(updates)
+
+    @staticmethod
+    def _normalize_value_updates(params: Any) -> list[dict[str, Any]]:
+        """Normalize a valuesChanged payload into a list of {registerIndex, displayValue} dicts.
+
+        The API has been observed sending either a single flat update, or a
+        batch nested under "fields" (matching the shape used by the initial
+        getValues response). Handle both so a shape change doesn't silently
+        drop every subsequent update until the next reconnect.
+        """
+        if isinstance(params, list):
+            return params
+        if isinstance(params, dict):
+            fields = params.get("fields")
+            if isinstance(fields, list):
+                return fields
+            if "registerIndex" in params:
+                return [params]
+        return []
 
     def _create_get_values_msg(self) -> dict[str, Any]:
         """Create a getValues message."""
@@ -363,5 +392,25 @@ def SET_VALUE_MSG(
             "UUID": client_id,
             "listenWithValuesChanged": True,
             "fields": [{"registerIndex": register_index, "displayValue": value}],
+        },
+    }
+
+
+def GET_VALUES_MSG(
+    installation_id: str, registers: list[int] | None = None
+) -> dict[str, Any]:
+    """Create a getValues message.
+
+    Requests the current values from the device. Used by the coordinator's
+    periodic poll as a safety net alongside the WebSocket's push-based
+    valuesChanged updates.
+    """
+    return {
+        "jsonrpc": "2.0",
+        "id": _generate_message_id(long_format=True),
+        "method": "getValues",
+        "params": {
+            "installationId": int(installation_id),
+            "fields": registers if registers else [],
         },
     }

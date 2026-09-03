@@ -38,6 +38,8 @@ ESSENTIAL_SENSORS = [
     1111,  # Compressor (state)
     1116,  # Heating Element (state)
     1130,  # Defrosting (state)
+    2370,  # Integral Temperature
+    2372,  # Air Inlet Temperature
 ]
 
 # List of essential control entities (switches, numbers, selects).
@@ -49,7 +51,7 @@ ESSENTIAL_CONTROLS = [
     2382,  # Boost Request (Select)
     2487,  # Hot Water Plus Requested (Switch)
     2498,  # Weekly Hygiene Program Requested (Switch)
-    2384,  # Frost Protection Requested (Switch)
+    2384,  # Standby / Frost Protection Requested (Switch) — see #9
     2481,  # End of Vacation (Switch)
 ]
 

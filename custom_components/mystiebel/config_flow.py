@@ -32,7 +32,7 @@ class MyStiebelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return MyStiebelOptionsFlowHandler(config_entry)
+        return MyStiebelOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -133,10 +133,6 @@ class MyStiebelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class MyStiebelOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle an options flow for MyStiebel."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
