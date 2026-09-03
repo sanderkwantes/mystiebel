@@ -2,9 +2,10 @@
   "domain": "mystiebel",
   "name": "MyStiebel",
   "config_flow": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "integration_type": "device",
   "documentation": "https://www.github.com/sanderkwantes/mystiebel",
+  "issue_tracker": "https://github.com/sanderkwantes/mystiebel/issues",
   "codeowners": ["@sanderkwantes"],
   "iot_class": "cloud_polling"
 }
