@@ -1,5 +1,7 @@
 """Authentication handler for MyStiebel integration."""
 
+import base64
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -66,10 +68,27 @@ class MyStiebelAuth:
                 self.token = data.get("token")
                 if not self.token:
                     raise ValueError("Authentication succeeded but no token was received")
-                # Assume token is valid for 24 hours (adjust based on actual token lifetime)
-                self.token_expiry = datetime.now() + timedelta(hours=24)
+                # Determine token expiry from JWT payload if available, else default to 24h
+                self.token_expiry = self._extract_token_expiry(self.token) or (
+                    datetime.now() + timedelta(hours=24)
+                )
 
         await self._rate_limiter(_do_auth)
+
+    @staticmethod
+    def _extract_token_expiry(token: str) -> datetime | None:
+        """Extract expiration time from a JWT token payload."""
+        try:
+            parts = token.split(".")
+            if len(parts) >= 2:
+                padded = parts[1] + "=" * (-len(parts[1]) % 4)
+                payload = json.loads(base64.urlsafe_b64decode(padded.encode()))
+                exp = payload.get("exp")
+                if exp is not None:
+                    return datetime.fromtimestamp(float(exp))
+        except Exception as e:
+            _LOGGER.debug("Could not parse token expiry: %s", e)
+        return None
 
     async def get_installations(self) -> dict[str, Any]:
         """Retrieve installations associated with the authenticated user."""

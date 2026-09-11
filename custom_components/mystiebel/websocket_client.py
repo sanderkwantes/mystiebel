@@ -74,6 +74,7 @@ class WebSocketClient:
         self._running = True
         self._task = None
         self._current_ws = None
+        self._subscribed = False
 
     def start(self) -> None:
         """Start the WebSocket client as a background task."""
@@ -149,6 +150,7 @@ class WebSocketClient:
             # Create WebSocket connection
             async with await self._create_connection() as ws:
                 self._current_ws = ws
+                self._subscribed = False
                 self.coordinator.set_websocket(ws)
 
                 # Login to WebSocket
@@ -171,6 +173,7 @@ class WebSocketClient:
             return False
         finally:
             self._current_ws = None
+            self._subscribed = False
             self.coordinator.set_websocket(None)
 
     async def _authenticate(self) -> None:
@@ -232,8 +235,13 @@ class WebSocketClient:
             # Route to appropriate handler based on message type
             if self._is_login_response(data):
                 await self._handle_login_response(ws)
-            elif self._is_initial_data(data):
-                await self._handle_initial_data(ws, data)
+            elif self._is_login_failure(data):
+                _LOGGER.error("WebSocket login failed: %s", data)
+                self.auth.token = None
+                self.auth.token_expiry = None
+                await ws.close()
+            elif self._is_values_response(data):
+                await self._handle_values_response(ws, data)
             elif self._is_value_update(data):
                 await self._handle_value_update(data)
 
@@ -244,8 +252,14 @@ class WebSocketClient:
         """Check if message is a login response."""
         return data.get("id") == 1 and data.get("result") is True
 
-    def _is_initial_data(self, data: dict[str, Any]) -> bool:
-        """Check if message contains initial data."""
+    def _is_login_failure(self, data: dict[str, Any]) -> bool:
+        """Check if message is a failed login response."""
+        return data.get("id") == 1 and (
+            data.get("result") is False or "error" in data
+        )
+
+    def _is_values_response(self, data: dict[str, Any]) -> bool:
+        """Check if message contains a getValues response."""
         result = data.get("result", {})
         return (
             data.get("id") is not None
@@ -264,19 +278,26 @@ class WebSocketClient:
         await ws.send_json(msg)
         _LOGGER.debug("Requested initial values")
 
-    async def _handle_initial_data(
+    async def _handle_values_response(
         self, ws: aiohttp.ClientWebSocketResponse, data: dict[str, Any]
     ) -> None:
-        """Handle initial data response."""
+        """Handle a getValues response."""
         fields = data["result"]["fields"]
-        _LOGGER.debug("Initial data received with %d values", len(fields))
+        _LOGGER.debug("Value snapshot received with %d values", len(fields))
 
         # Process the data
         self.coordinator.process_data_update(fields)
 
-        # Subscribe to updates
+        if not self._subscribed:
+            await self._subscribe_to_updates(ws)
+
+    async def _subscribe_to_updates(
+        self, ws: aiohttp.ClientWebSocketResponse
+    ) -> None:
+        """Subscribe once per WebSocket connection to valuesChanged updates."""
         msg = self._create_subscribe_msg()
         await ws.send_json(msg)
+        self._subscribed = True
         _LOGGER.debug("Subscribed to value updates")
 
     async def _handle_value_update(self, data: dict[str, Any]) -> None:
@@ -410,7 +431,7 @@ def GET_VALUES_MSG(
         "id": _generate_message_id(long_format=True),
         "method": "getValues",
         "params": {
-            "installationId": int(installation_id),
+            "installationId": installation_id,
             "fields": registers if registers else [],
         },
     }
